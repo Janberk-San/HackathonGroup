@@ -10,9 +10,6 @@ data/cache/
 data/processed/
 data/manual/*
 !data/manual/README.md
-models/*.txt
-models/*.json
-models/*.csv
 forecasts.csv
 .idea/
 exports/*

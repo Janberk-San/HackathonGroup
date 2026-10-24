@@ -94,6 +94,64 @@ def clean(v):
     return v
 
 
+def national_rates() -> dict[str, dict[int, float]]:
+    """US annual rates per 100k, summed from the monthly 'United States Offenses' rates the FBI returns
+    with every agency query (any cached summarized response for a full 2005-2024 window works)."""
+    import collections
+    import glob
+
+    nat: dict[str, dict[int, float]] = {}
+    for f in glob.glob(str(PROJECT_ROOT / "data" / "cache" / "*.json")):
+        try:
+            j = json.load(open(f, encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        if not isinstance(j, dict) or "offenses" not in j:
+            continue
+        us = (j["offenses"].get("rates") or {}).get("United States Offenses") or {}
+        if len(us) < 240:
+            continue
+        yearly: dict[int, float] = collections.defaultdict(float)
+        for k, v in us.items():
+            if v is not None:
+                yearly[int(k.split("-")[1])] += v
+        # the cache does not record the offense slug; identify it by magnitude of the 2019 national rate
+        if "violent" not in nat and 250 < yearly[2019] < 500:
+            nat["violent"] = dict(yearly)
+        elif "property" not in nat and 1500 < yearly[2019] < 2500:
+            nat["property"] = dict(yearly)
+        if len(nat) == 2:
+            break
+    return nat
+
+
+def write_national_comparison(flat: pd.DataFrame, exports: Path) -> None:
+    nat = national_rates()
+    if len(nat) < 2:
+        print("national rates not found in cache; skipping city_forecasts_vs_national.csv")
+        return
+    wide = flat.pivot(index=["geoid", "city", "state"], columns="target",
+                      values=["as_of_year", "forecast_year", "current_rate_per_100k", "predicted_rate_per_100k", "pct_change"])
+    wide.columns = [f"{t}_{c}" for c, t in wide.columns]
+    wide = wide.reset_index()
+    latest = max(nat["violent"])
+    cols = ["geoid", "city", "state"]
+    for t in TARGETS:
+        wide[f"{t}_as_of_year"] = pd.to_numeric(wide[f"{t}_as_of_year"]).astype("Int64")
+        wide[f"{t}_forecast_year"] = pd.to_numeric(wide[f"{t}_forecast_year"]).astype("Int64")
+        wide[f"national_{t}_rate_as_of_year"] = wide[f"{t}_as_of_year"].map(
+            lambda y: round(nat[t][int(y)], 1) if pd.notna(y) and int(y) in nat[t] else None)
+        wide[f"national_{t}_rate_{latest}"] = round(nat[t][latest], 1)
+        cols += [f"{t}_as_of_year", f"{t}_current_rate_per_100k", f"{t}_forecast_year", f"{t}_predicted_rate_per_100k",
+                 f"{t}_pct_change", f"national_{t}_rate_as_of_year", f"national_{t}_rate_{latest}"]
+    wide[cols].sort_values(["state", "city"]).to_csv(exports / "city_forecasts_vs_national.csv", index=False)
+    years = sorted(nat["violent"])
+    pd.DataFrame({"year": years,
+                  "national_violent_rate_per_100k": [round(nat["violent"][y], 1) for y in years],
+                  "national_property_rate_per_100k": [round(nat["property"].get(y, float("nan")), 1) for y in years]}
+                 ).to_csv(exports / "national_rates_by_year.csv", index=False)
+
+
 def main() -> None:
     panel = load_panel()
     uni = city_universe().set_index("geoid")
@@ -177,7 +235,9 @@ def main() -> None:
                 "top_driver_3": f["top_drivers"][2]["label"], "note": c["data_note"],
             })
     csv_path = exports / "frontend_forecasts.csv"
-    pd.DataFrame(rows).to_csv(csv_path, index=False)
+    flat = pd.DataFrame(rows)
+    flat.to_csv(csv_path, index=False)
+    write_national_comparison(flat, exports)
     print(f"{len(cities)} cities -> {json_path} ({os.path.getsize(json_path) / 1e6:.2f} MB), {csv_path} ({len(rows)} rows)")
     sample = next(c for c in cities if c["name"].startswith("Baltimore"))
     print(json.dumps(sample["forecasts"]["violent"], indent=1))

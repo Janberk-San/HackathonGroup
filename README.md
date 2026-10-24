@@ -94,11 +94,18 @@ predict_all()                              # DataFrame: one row per city x targe
   is smoothed; `d5` compares non-overlapping windows and is the cleaner trend signal.
 * **Target**: `y = log(rate_{t+4} + 1) - log(rate_t + 1)` per 100k residents, for violent and property
   crime separately (two models). Predicted rate = `(rate_t + 1) * exp(y_hat) - 1`.
-* **Validation**: rows with feature-year >= 2017 (outcomes 2021-2024) are a time hold-out never used
+* **Validation**: rows with feature-year >= 2019 (outcomes 2023-2024) are a time hold-out never used
   for fitting; inside the training years a GroupKFold over cities estimates performance on *unseen*
   cities. Both are compared with "no change" and "trend continues" baselines and written to
-  `models/training_summary.json`. If the model does not beat "no change" on the hold-out, say so in
-  the app rather than shipping the forecast as fact.
+  `models/training_summary.json`.
+* **Current results** (trained 2026-10-24 on 2,390 city-years, 2011-2018; hold-out 593 rows):
+
+  | Target | Model RMSE (log change) | "No change" | "Trend continues" | Median error on the rate |
+  |---|---|---|---|---|
+  | Violent | 0.279 | 0.314 | 0.417 | 15.8% (no-change: 16.7%) |
+  | Property | 0.253 | 0.272 | 0.371 | 13.6% (no-change: 15.9%) |
+
+  Variable importances with direction of effect: `models/feature_weights_with_direction.csv`.
 
 ## Known limitations (read before demoing)
 
@@ -110,8 +117,10 @@ predict_all()                              # DataFrame: one row per city x targe
 * **Spending data** exist for fiscal years 2017-2022 only (interpolated between, carried forward after).
 * **Religion** is the 2020 census of congregations applied to all years (slow-moving).
 * **Correlation, not causation.** Feature contributions explain the model, not the city.
-* Model quality numbers only exist once `build-data` + `train` have run with real keys; nothing in this
-  repo was fitted on real crime data yet.
+* **Government spending** only exists for fiscal 2017-2022, so its 5-year changes are always missing and
+  its levels enter with small weight. Earlier years would need the Lincoln Institute FiSC database.
+* **Direction of effect is not causation.** The model forecasts *change*; a variable marked "negative" means
+  cities with high values tended to decline from high starting rates, not that the variable lowers crime.
 
 ## Layout
 

@@ -49,8 +49,12 @@ FORECAST = {
 * Rates are offenses per 100,000 residents per year. `pct_change` compares the forecast with the current rate.
 * Always show `as_of_year` and `forecast_year`. Ten cities forecast from data older than 2023 (see `data_note`);
   Urban Honolulu has no forecast and an empty `forecasts` object.
-* Show the typical error band: about +/-16% for violent and +/-14% for property crime. These are statistical
-  expectations for a city's reported crime rate, not predictions of events.
+* Show the typical error band (`typical_error_pct`, the hold-out median error: about +/-16% for violent and
+  +/-14% for property crime). These are statistical expectations for a city's reported crime rate, not
+  predictions of events.
+* `city_forecasts_vs_national.csv` is a one-row-per-city version with the US national rate for the same year
+  (from the FBI) alongside each city's current and predicted rate; `national_rates_by_year.csv` is the national
+  series 2005-2024 for a reference line on charts.
 * `top_drivers` are the model's feature contributions for that city: association, not cause. Positive `weight`
   pushes the forecast up. Shares are fractions (0.236 = 23.6%).
 * A feature `value` of `null` means the input was unavailable for that city; hide it rather than showing 0.

@@ -20,3 +20,4 @@ exports/*
 !exports/frontend_forecasts.csv
 !exports/city_forecasts_vs_national.csv
 !exports/national_rates_by_year.csv
+models_split*/

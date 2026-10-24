@@ -68,7 +68,8 @@ TARGETS: list[str] = ["violent", "property"]
 FBI_OFFENSES: dict[str, str] = {"violent": "violent-crime", "property": "property-crime"}
 MIN_MONTHS_FOR_ANNUAL: int = 12      # require a full year of monthly reports for an annual count
 TARGET_CLIP: float = 1.5             # clip |log change| of the training target (robustness)
-TEST_START_YEAR: int = 2017          # feature-year t >= this -> hold-out set (targets 2021+ for h=4)
+TEST_START_YEAR: int = 2019          # feature-year t >= this -> hold-out set (targets 2023+ for h=4);
+                                     # 2019 keeps the 2017+ government-finance years inside the training set
 
 # --------------------------------------------------------------------------- government finance
 # Census of Governments item codes (current operations E.., construction F..).

@@ -91,7 +91,32 @@ predict_city("Baltimore", "MD")   # current rate, 4-year forecast, % change and 
 predict_all()                     # DataFrame: one row per city x crime type x horizon
 ```
 
+### Deploy to a live URL
+
+The website is one Node process (`website/scripts/preview-server.mjs`) that serves the map and proxies the Gemma calls. It uses only Node built-ins, so a free Node host runs it with no build step. The repo ships a [`render.yaml`](render.yaml) blueprint for [Render](https://render.com); the same settings work on Railway or Fly.io.
+
+**Render, free tier, about ten minutes:**
+
+1. Push the repo to GitHub and sign in to Render with that GitHub account.
+2. Choose **New → Blueprint**, pick this repository and click **Apply**. Render reads `render.yaml` and creates one web service named `gaurd`.
+3. When prompted for `GEMINI_API_KEY`, paste your Google AI Studio key. It is stored as a Render secret, never in Git. The Node version, the Gemma model names and the start command are already in the blueprint.
+4. Wait for the first deploy and open the URL Render shows (`https://gaurd.onrender.com` or similar). Every later push to `main` redeploys automatically.
+
+| Setting | Value | Why |
+|---|---|---|
+| Root directory | `website` | the Node app lives there |
+| Build command | `node --check scripts/preview-server.mjs` | nothing to install, just a syntax check |
+| Start command | `npm run preview:local` | the same server used locally |
+| `GEMINI_API_KEY` | entered in the dashboard | without it the site runs with "Gemma not connected" |
+| `GEMMA_MODEL`, `GEMMA_RESEARCH_MODEL` | `gemma-4-26b-a4b-it`, `gemma-4-31b-it` | chat and web-search models; only `gemma-*` names are accepted |
+
+**Any other Node host:** set the working directory to `website`, the start command to `npm run preview:local`, and provide `GEMINI_API_KEY` as an environment variable. The server binds to the host's `PORT` on all interfaces when `PORT` is set and falls back to `127.0.0.1:4173` locally. It reads the public hostname and scheme from the `Host`, `X-Forwarded-Host` and `X-Forwarded-Proto` headers so the same-origin check on `/api/ai/*` matches what the browser sends through the host's proxy.
+
+**Before judging day:** free tiers sleep after about 15 minutes idle and take 30 to 60 seconds to wake, so open the URL a minute before presenting. Each Gemma request spends your Google AI Studio quota (two or three calls per news review, two per home match). For a one-off demo from a laptop you can skip hosting: run `npm run preview:local` and, in a second terminal, `npx cloudflared tunnel --url http://127.0.0.1:4173` for a temporary public address.
+
 ## The forecasting model
+
+Full write-up, including the backtest design and the direction-accuracy check: [docs/LIGHTGBM_MODEL_REPORT.md](docs/LIGHTGBM_MODEL_REPORT.md).
 
 ### The question
 
@@ -195,6 +220,8 @@ Weight is spread thinly across 104 features, and no single input dominates. Two 
 - **Demographic shares describe whole cities in a statistical model.** They say nothing about individuals and must never be presented as if they did. See [Fairness](#fairness).
 
 ## How we use Gemma 4
+
+Full write-up: [docs/GEMMA_USER_EXPERIENCE.md](docs/GEMMA_USER_EXPERIENCE.md).
 
 The LightGBM model produces the numbers: a city's reported crime rate, the national rate for the same year, and a four-year forecast. Numbers alone are hard to act on. Gemma handles everything around them. It explains them in plain English, puts them next to what is happening in the city right now, and helps someone who is researching a move.
 
@@ -300,6 +327,7 @@ The site targets WCAG 2.2 AA ([website/ACCESSIBILITY.md](website/ACCESSIBILITY.m
 ## Cost and deployment
 
 - **Nothing heavy to host.** Forecasts are precomputed, so the website is static files plus one small API handler (`website/server/gemma.js`). There is no model server or database.
+- **One-click hosting.** `render.yaml` deploys the site to Render's free tier with no install step; see [Deploy to a live URL](#deploy-to-a-live-url).
 - **No API needed for the core site.** The map, charts and rule-based guide work without any key. The Gemma features need one Google AI Studio key.
 - **Small model by default.** Chat uses Gemma 4 26B A4B, a mixture-of-experts model that activates about 4B of its 26B parameters per token. The 31B model is used only for the news review and the home search, where the 26B model grounded unreliably in our tests.
 - **Bounded cost per question.** Each chat turn is capped at four model steps, eight messages of history, 22 KB per request and four requests in flight. Identical requests share one answer, which is cached for 15 minutes.
@@ -335,7 +363,8 @@ models/                      trained models, metrics (training_summary.json), fe
 exports/                     forecasts the website reads
 scripts/export_frontend.py   writes exports/
 config/ori_overrides.csv     manual city -> police agency matches for consolidated governments
-docs/                        DATA_SOURCES.md (every input, with URLs), CITIES.md
+docs/                        DATA_SOURCES.md (every input, with URLs), CITIES.md, LIGHTGBM_MODEL_REPORT.md, GEMMA_USER_EXPERIENCE.md
+render.yaml                  Render blueprint for a free live deployment
 tests/smoke_test.py          key-free end-to-end check
 website/
   web/                       map, charts, companion panel and dialogs (plain JavaScript, MapLibre GL)
@@ -357,4 +386,4 @@ _add names and what each person built_
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Third-party assets keep their own licenses: MapLibre GL JS (`website/web/assets/MAPLIBRE-LICENSE.txt`), the OpenFreeMap and Positron map styles (`website/web/assets/`), and map data © OpenMapTiles and OpenStreetMap contributors.
+Apache License 2.0. See [LICENSE](LICENSE). Third-party assets keep their own licenses: MapLibre GL JS (`website/web/assets/MAPLIBRE-LICENSE.txt`), the OpenFreeMap and Positron map styles (`website/web/assets/`), and map data © OpenMapTiles and OpenStreetMap contributors.

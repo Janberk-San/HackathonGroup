@@ -1,3 +1,2 @@
 models/*.txt -text
 *.parquet binary
-models_level/*.txt -text

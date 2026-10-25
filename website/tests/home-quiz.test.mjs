@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {HOME_QUIZ,validateHomeAnswers,describeHomeProfile,homeQuizQuestion,loadHomeProfile} from '../web/home-quiz.js';
+import {HOME_QUIZ,validateHomeAnswers,describeHomeProfile,homeQuizQuestion,loadHomeProfile,zillowSearchUrl} from '../web/home-quiz.js';
 const answers={price:'250k-500k',beds:'3',baths:'2',sqft:'1500-2000'};
 test('quiz covers price, beds, baths and square feet and rejects unknown answers',()=>{
  assert.deepEqual(HOME_QUIZ.map(question=>question.key),['price','beds','baths','sqft']);
@@ -14,4 +14,12 @@ test('the Gemma question describes the home in plain words and stays within the 
  assert.equal(homeQuizQuestion({price:'bogus'},'Boston, MA'),'');
  assert.equal(describeHomeProfile({price:'over-1m',beds:'5+',baths:'3+',sqft:'over-3000'}),'a home priced over $1M with 5+ beds, 3+ baths and over 3,000 square feet');
  assert.equal(loadHomeProfile(),null);
+});
+test('the Zillow search carries the city and every filter, with open-ended ranges left unbounded',()=>{
+ const url=zillowSearchUrl(answers,'Abilene, TX');assert.match(url,/^https:\/\/www\.zillow\.com\/homes\/for_sale\/\?searchQueryState=/);
+ const state=JSON.parse(decodeURIComponent(url.split('searchQueryState=')[1]));
+ assert.equal(state.usersSearchTerm,'Abilene, TX');assert.deepEqual(state.filterState.price,{min:250000,max:500000});assert.deepEqual(state.filterState.beds,{min:3});assert.deepEqual(state.filterState.baths,{min:2});assert.deepEqual(state.filterState.sqft,{min:1500,max:2000});
+ const open=JSON.parse(decodeURIComponent(zillowSearchUrl({price:'over-1m',beds:'5+',baths:'2.5',sqft:'under-1000'},'Boston, MA').split('searchQueryState=')[1])).filterState;
+ assert.deepEqual(open.price,{min:1000000});assert.deepEqual(open.beds,{min:5});assert.deepEqual(open.baths,{min:2.5});assert.deepEqual(open.sqft,{max:1000});
+ assert.equal(zillowSearchUrl({...answers,beds:'30'},'Boston, MA'),'');assert.equal(zillowSearchUrl(answers,''),'');
 });

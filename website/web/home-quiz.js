@@ -21,6 +21,16 @@ export function homeQuizQuestion(answers,cityName){
  const profile=describeHomeProfile(answers);if(!profile)return '';
  return `I am considering ${profile} in ${cityName}. What does recent local reporting say about housing, neighborhood safety and crime trends that someone looking at that kind of home should know?`;
 }
+// Zillow search for the quiz answers. Zillow has no public listings API, so the quiz opens Zillow's own
+// for-sale search with the price, bed, bath and square-foot filters applied to the selected city.
+const RANGES={price:{'under-250k':[null,250000],'250k-500k':[250000,500000],'500k-750k':[500000,750000],'750k-1m':[750000,1000000],'over-1m':[1000000,null]},sqft:{'under-1000':[null,1000],'1000-1500':[1000,1500],'1500-2000':[1500,2000],'2000-3000':[2000,3000],'over-3000':[3000,null]}};
+const bounds=([min,max])=>({...(min!==null?{min}:{}),...(max!==null?{max}:{})});
+export function zillowSearchUrl(answers,cityName){
+ const valid=validateHomeAnswers(answers);if(!valid||typeof cityName!=='string'||!cityName.trim())return '';
+ const filterState={price:bounds(RANGES.price[valid.price]),beds:{min:parseInt(valid.beds,10)},baths:{min:parseFloat(valid.baths)},sqft:bounds(RANGES.sqft[valid.sqft]),sort:{value:'globalrelevanceex'}};
+ const state={usersSearchTerm:cityName.trim(),isMapVisible:true,isListVisible:true,filterState};
+ return `https://www.zillow.com/homes/for_sale/?searchQueryState=${encodeURIComponent(JSON.stringify(state))}`;
+}
 export function loadHomeProfile(){try{return validateHomeAnswers(JSON.parse(localStorage.getItem(STORAGE_KEY)??'null'));}catch{return null;}}
 export function saveHomeProfile(answers){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(answers));}catch{/* Optional per-browser convenience. */}}
 export function setupHomeQuiz(form,onSubmit){

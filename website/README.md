@@ -18,7 +18,7 @@ Open `http://127.0.0.1:4173`. Requires Node 22.13+ and `npm install`. The local 
 - `model-pipeline/models/` contains LightGBM weights, metadata, feature weights, and the training report.
 - `scripts/import-partner.mjs` validates and refreshes the saved data.
 - `web/data-service.js` supports static data or an optional HTTP API.
-- `web/home-quiz.js` is the Home fit quiz: price range, bedrooms, bathrooms and square feet become a tailored Gemma local review. Answers stay in the browser and never change the forecast.
+- `web/home-quiz.js` is the Home fit quiz: price range, bedrooms, bathrooms and square feet become a tailored Gemma local review and open the matching Zillow for-sale search in a new tab. Answers stay in the browser and never change the forecast.
 
 See [INTEGRATION.md](./INTEGRATION.md) for data updates and [ACCESSIBILITY.md](./ACCESSIBILITY.md) for the WCAG 2.2 AA target and checks.
 

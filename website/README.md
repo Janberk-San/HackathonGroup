@@ -21,7 +21,7 @@ Open `http://127.0.0.1:4173`. Requires Node 22.13+ and `npm install`. The local 
 
 See [INTEGRATION.md](./INTEGRATION.md) for data updates and [ACCESSIBILITY.md](./ACCESSIBILITY.md) for the WCAG 2.2 AA target and checks.
 
-Gemma reviews recent local coverage inside the site. Google Search provides grounded evidence; article pages supply publication dates and titles. Gemma writes a concise, sourced review. The forecast remains unchanged.
+Gemma reviews recent local coverage inside the site and is the only model used. The Google News RSS feed supplies dated headlines for the city; Gemma writes a concise, sourced review from them. The forecast remains unchanged.
 
 Set `GEMINI_API_KEY` in the ignored `.env.local` file for local use. Production uses the Sites runtime secret with the same name. Never put a key in `web/` or Git.
 

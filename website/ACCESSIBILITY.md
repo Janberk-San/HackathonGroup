@@ -46,4 +46,4 @@ After the partner-data integration on 2026-10-24, Chrome checks also covered the
 - [WAI dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
 - [Dragging movement alternatives](https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html)
 
-The in-site Gemma review uses a native dialog with a loading status, dated source links, retry, and distinct no-news/error states. Desktop and phone browser checks cover these states and chat with axe-core. Google Search suggestions run in a sandboxed, titled iframe. Local UI QA uses the shared Node handler because this Mac cannot run the Cloudflare emulator; production routes are checked after deployment.
+The in-site Gemma review uses a native dialog with a loading status, dated source links, retry, and distinct no-news/error states. Desktop and phone browser checks cover these states and chat with axe-core. Local UI QA uses the shared Node handler because this Mac cannot run the Cloudflare emulator; production routes are checked after deployment.

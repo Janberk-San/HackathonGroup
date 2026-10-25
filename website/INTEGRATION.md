@@ -42,8 +42,8 @@ Return geoid, unit (`per100000`), metric definition, baselineYear, currentRate, 
 
 `POST /api/ai/research` and `POST /api/ai/chat` accept a city GEOID, category, and optional question. `GET /api/ai/status` returns connection status without secrets.
 
-`server/gemma.js` retrieves grounded Google Search evidence, checks publication metadata on article pages, and asks Gemma to synthesize a short review. Only source IDs from retrieved evidence are accepted. Recent means the past 90 days. Blocked, undated, or failed retrieval is distinct from no relevant coverage. News never modifies model values. Results cache for 15 minutes.
+`server/gemma.js` uses Gemma as its only model. Recent coverage comes from the Google News RSS feed for the city (a plain HTTP fetch, no model and no Gemini call); each feed item carries its headline, publisher, and publication date. Gemma then picks the headlines relevant to the city and question and writes a short review. Only source IDs from the fetched feed are accepted. Recent means the past 90 days. A failed feed fetch is distinct from no relevant coverage. News never modifies model values. Results cache for 15 minutes.
 
-Set `GEMINI_API_KEY` in `.env.local` locally and as a secret through Sites runtime environment variables in production. `GEMMA_MODEL` and `GOOGLE_SEARCH_MODEL` are optional model overrides. Keys stay outside source and browser responses.
+Set `GEMINI_API_KEY` (a Google AI Studio key) in `.env.local` locally and as a secret through Sites runtime environment variables in production. `GEMMA_MODEL` is an optional override and must be a `gemma-*` model id. Keys stay outside source and browser responses.
 
 The supported server build uses Vinext and the Sites Vite integration. `web/` is authored frontend source; `public/` and `dist/` are generated. Run `npm run build` with Node 22.13+ before publication. `npm run preview:local` runs the shared API handler and map through Node on machines that cannot run the Cloudflare emulator.

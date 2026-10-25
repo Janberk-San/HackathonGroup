@@ -18,5 +18,4 @@ export function renderReview(container,result){
   article.append(title,date,el('p','',source.context));container.append(article);
  }
  if(result.searchedAt){const date=new Date(result.searchedAt);if(!Number.isNaN(date.valueOf()))container.append(el('p','review-timestamp',`Researched ${date.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} · Past ${result.windowDays||90} days`));}
- if(typeof result.searchSuggestions==='string'&&result.searchSuggestions){const frame=document.createElement('iframe');frame.className='search-suggestions';frame.title='Google Search suggestions';frame.setAttribute('sandbox','allow-popups allow-popups-to-escape-sandbox');frame.srcdoc=result.searchSuggestions;container.append(frame);}
 }

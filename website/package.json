@@ -12,7 +12,7 @@
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "check": "node --check web/app.js && node --check web/data-service.js && node --check web/crime-comparison.js && node --check web/config.js && node --check web/map-hover.js && node --check web/map-labels.js && node --check web/workspace.js && node --check web/data-guide.js && node --check scripts/import-partner.mjs && node scripts/check-data.mjs && node --check server/gemma.js && node --check web/research.js",
+    "check": "node --check web/app.js && node --check web/data-service.js && node --check web/crime-comparison.js && node --check web/config.js && node --check web/map-hover.js && node --check web/map-labels.js && node --check web/workspace.js && node --check web/data-guide.js && node --check scripts/import-partner.mjs && node scripts/check-data.mjs && node --check server/gemma.js && node --check web/research.js && node --check web/home-quiz.js",
     "test": "node --test tests/*.test.mjs",
     "import:partner": "node scripts/import-partner.mjs",
     "prepare:web": "node scripts/prepare-web.mjs",

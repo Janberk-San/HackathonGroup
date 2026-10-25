@@ -5,6 +5,7 @@ import { initializeWorkspace, mapPadding, reducedMotion } from './workspace.js';
 import { describeComparison, guideReply } from './data-guide.js';
 import { containPopupScroll } from './map-hover.js';
 import { aiStatus, requestGemma, renderReview } from './research.js';
+import { setupHomeQuiz, homeQuizQuestion, describeHomeProfile } from './home-quiz.js';
 
 const $ = s => document.querySelector(s);
 const icons = {
@@ -122,7 +123,7 @@ async function selectArea(region, { navigate = true, focus = true } = {}) {
     $('#region-coverage').textContent=covered.length?`${covered.length} supported ${covered.length===1?'city':'cities'} in ${region.name}. Select one for its national, current, and four-year comparison.`:'This region has no cities in the supplied coverage list. Search for a supported US city above.';
     $('#region-cities').replaceChildren(...covered.map(city=>regionButton(city)));
   }
-  $('#news-search-link').hidden=!isCity(region);
+  $('#news-search-link').hidden=!isCity(region);$('#home-quiz-link').hidden=!isCity(region);
   if (mapReady) {
     map.setFeatureState({ source: areaSource(region), id: region.id }, { selected: true });
     if (navigate) focusArea(region);
@@ -391,19 +392,25 @@ async function replyToQuestion(question) {
   catch(error){if(error.name!=='AbortError')message.textContent=error.message;}
 }
 let reviewRequest;
-async function openResearch(){
+let lastResearchOptions={};
+async function openResearch({question,note}={}){
+ lastResearchOptions={question,note};
  if(!isCity(selectedArea))return;
  reviewRequest?.abort();const request=new AbortController();reviewRequest=request;
- $('#research-city').textContent=`${selectedArea.name}, ${selectedArea.stateAbbr}`;
+ $('#research-city').textContent=`${selectedArea.name}, ${selectedArea.stateAbbr}`;$('#research-note').textContent=note??'';$('#research-note').hidden=!note;
  $('#research-content').replaceChildren();$('#research-status').textContent='Researching recent coverage…';$('#retry-research').hidden=true;
  workspace.openDialog('research-dialog');
- try{const review=await requestGemma({geoid:selectedArea.geoid,metric:selectedMetric},{signal:request.signal});if(!request.signal.aborted){$('#research-status').textContent='';renderReview($('#research-content'),review);}}
+ try{const review=await requestGemma({geoid:selectedArea.geoid,metric:selectedMetric,...(question?{question}:{})},{signal:request.signal});if(!request.signal.aborted){$('#research-status').textContent='';renderReview($('#research-content'),review);}}
  catch(error){if(error.name!=='AbortError'){$('#research-status').textContent=error.message;$('#retry-research').hidden=false;}}
 }
-$('#news-search-link').addEventListener('click',openResearch);
-$('#retry-research').addEventListener('click',openResearch);
+$('#news-search-link').addEventListener('click',()=>openResearch());
+$('#retry-research').addEventListener('click',()=>openResearch(lastResearchOptions));
 $('#research-dialog').addEventListener('close',()=>reviewRequest?.abort());
-$('#research-comparison').addEventListener('click',()=>{const dialog=$('#comparison-dialog');dialog.addEventListener('close',openResearch,{once:true});dialog.close('open-review');});
+$('#research-comparison').addEventListener('click',()=>{const dialog=$('#comparison-dialog');dialog.addEventListener('close',()=>openResearch(),{once:true});dialog.close('open-review');});
+function openHomeQuiz(opener){if(isCity(selectedArea))workspace.openDialog('home-quiz-dialog',opener);}
+$('#home-quiz-link').addEventListener('click',event=>openHomeQuiz(event.currentTarget));
+$('#home-quiz-comparison').addEventListener('click',()=>{const dialog=$('#comparison-dialog');dialog.addEventListener('close',()=>openHomeQuiz($('#home-quiz-link')),{once:true});dialog.close('open-quiz');});
+setupHomeQuiz($('#home-quiz-form'),answers=>{$('#home-quiz-dialog').close('quiz-submitted');openResearch({question:homeQuizQuestion(answers,`${selectedArea.name}, ${selectedArea.stateAbbr}`),note:`Asked about ${describeHomeProfile(answers)}.`});});
 $('#chat-form').addEventListener('submit', event => { event.preventDefault(); const question = $('#chat-input').value.trim(); if (!question) return; $('#chat-input').value = ''; replyToQuestion(question); });
 document.querySelectorAll('[data-question]').forEach(button => button.addEventListener('click', () => replyToQuestion(button.dataset.question)));
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#chat-panel').hidden && !document.querySelector('dialog[open]')) toggleChat(false); });

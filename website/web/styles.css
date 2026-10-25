@@ -436,3 +436,18 @@ html.chat-modal { overflow:hidden; }
 #research-comparison { display:block; min-height:44px; margin:12px auto 0; }
 .chat-message .review-article { padding:12px 0 8px; }
 .chat-message .review-article h3 { font-size:.875rem; }
+
+/* Home fit quiz */
+.future-row .text-button + .text-button { margin-left:12px; }
+.research-note { font-size:.75rem; margin:-8px 0 16px; }
+#home-quiz-comparison { display:block; min-height:44px; margin:4px auto 0; }
+.home-quiz-dialog .quiz-question { border:0; padding:0; margin:0 0 18px; min-width:0; }
+.home-quiz-dialog legend { font-size:.875rem; font-weight:600; color:var(--ink); padding:0; margin-bottom:8px; }
+.quiz-options { display:flex; flex-wrap:wrap; gap:6px; }
+.quiz-options label { position:relative; cursor:pointer; }
+.quiz-options input { position:absolute; opacity:0; width:1px; height:1px; }
+.quiz-options span { display:flex; align-items:center; justify-content:center; min-height:44px; padding:8px 14px; border:1px solid var(--control-border); border-radius:0; font-size:.875rem; color:#376889; }
+.quiz-options input:checked+span { background:#376889; color:#fff; border-color:#376889; }
+.quiz-options input:focus-visible+span { outline:3px solid var(--focus); outline-offset:3px; }
+#home-quiz-form .primary-button { width:100%; margin-top:8px; }
+@media (forced-colors: active) { .quiz-options input:checked+span { outline:2px solid Highlight; outline-offset:-3px; } }

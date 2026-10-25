@@ -25,9 +25,9 @@ export function describeComparison(comparison,cityName,{currentYear=new Date().g
   if(predicted&&forecast<currentYear)parts.push('Historical projection.');
   return parts.join(' ');
 }
-export function guideReply(question,{comparison,cityName}={}){
+export function guideReply(question,{comparison,cityName,aiConnected=false}={}){
   const text=typeof question==='string'?question.trim().toLowerCase():'';
-  if(/\b(news|headlines?|articles?|gemma|live ai|ai chatbot|web search|research)\b/.test(text))return 'Live Gemma and news retrieval are not connected. Use Local news to search coverage.';
+  if(/\b(news|headlines?|articles?|gemma|live ai|ai chatbot|web search|research)\b/.test(text))return aiConnected?'Choose a city first so Gemma can research its recent news.':'Live Gemma and news retrieval are not connected. You can still explore the city charts.';
   if(/\b(safe|safer|safest|dangerous|recommend|housing|famil(?:y|ies)|moving|where (?:should|to)|live|home|personal (?:risk|probability))\b/.test(text))return 'Citywide crime rates do not measure your family’s personal risk. Consider neighborhood conditions and your other needs, too.';
   if(/\b(defin(?:e|ition)|meaning|what (?:is|are)|difference between|categor(?:y|ies)|include|counts? as)\b/.test(text)&&/\b(violent|property|crime|categor(?:y|ies))\b/.test(text)){
     if(/property/.test(text)&&!/violent/.test(text))return 'Property crime includes burglary, larceny-theft, and motor vehicle theft.';

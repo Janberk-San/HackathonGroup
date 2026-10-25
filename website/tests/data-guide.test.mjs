@@ -24,6 +24,10 @@ test('live AI and news status remain accurate without a long disclaimer',()=>{
  for(const question of ['What does Gemma predict?','Read current Boston news','Is live AI connected?'])assert.match(guideReply(question,{comparison:comparison()}),/not connected/);
  assert.match(guideReply('What is violent crime?'),/aggravated assault/);assert.match(guideReply('What is property crime?'),/motor vehicle theft/);assert.match(guideReply('Help me explore'),/City list/);assert.match(guideReply('How do I zoom?'),/without dragging/);
 });
+test('a connected Gemma without a selected city asks for a city without claiming a connection failure',()=>{
+ const answer=guideReply('Read current local news',{aiConnected:true});
+ assert.match(answer,/Choose a city/);assert.doesNotMatch(answer,/not connected|unavailable/);
+});
 test('validation uses the selected metric and does not imply a city confidence interval',()=>{
  const reply=guideReply('How accurate is this? What is the error?',{comparison:comparison({provenance:{reportedValidation:{holdoutRows:593,metric:{medianRateErrorPct:15.8}}}})});
  assert.match(reply,/15.8%/);assert.match(reply,/593/);assert.match(reply,/not a confidence interval/);

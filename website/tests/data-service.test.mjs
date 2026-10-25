@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { parseCsv } from '../scripts/import-partner.mjs';
+import { parseCsv, buildCrimeData, parseTrainingSummary } from '../scripts/import-partner.mjs';
 import { areaDataProvider } from '../web/data-service.js';
 import { dataConfig } from '../web/config.js';
 
@@ -10,6 +10,18 @@ const originalFetch = globalThis.fetch;
 const originalConfig = { ...dataConfig };
 const productionData = JSON.parse(await fs.readFile(new URL('../web/data/city-crime.json', import.meta.url), 'utf8'));
 const productionCatalog = JSON.parse(await fs.readFile(new URL('../web/data/city-catalog.json', import.meta.url), 'utf8'));
+
+test('the saved site data is reproducible from the retained exports without overriding conflicting predictions',async()=>{
+ const read=name=>fs.readFile(new URL(`../data-sources/partner/${name}`,import.meta.url));
+ const names=['frontend_forecasts.csv','national_rates_by_year.csv','city_forecasts_vs_national.csv'];
+ const inputs=await Promise.all(names.map(read));const training=await read('training_summary.json');
+ const reportedValidation=parseTrainingSummary(JSON.parse(training.toString('utf8')));
+ reportedValidation.sourceSha256=createHash('sha256').update(training).digest('hex');
+ const reproduced=buildCrimeData({forecastsCsv:inputs[0].toString('utf8'),nationalCsv:inputs[1].toString('utf8'),comparisonsCsv:inputs[2].toString('utf8'),catalog:productionCatalog,reportedValidation,sourceFiles:inputs.map((bytes,i)=>({filename:`exports/${names[i]}`,sha256:createHash('sha256').update(bytes).digest('hex')}))});
+ assert.equal(reproduced.provenance.comparisonPolicy,'strict_agreement');
+ assert.equal(reproduced.provenance.staleComparisonForecastCount,0);
+ assert.deepEqual(reproduced,productionData);
+});
 
 test('production static provider joins all 644 crime records to the same category and reporting-year national benchmark', async () => {
   const requests = [];

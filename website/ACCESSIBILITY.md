@@ -30,6 +30,8 @@ On 2026-10-25, the visual refinement replaced rounded component corners and seri
 
 Chrome and axe-core checks passed in 37 interface states across desktop, 390px and 320px phones, short landscape, independent 200% text sizing, text-spacing overrides, and forced colors. Checks covered keyboard city selection, category radios, dialog focus, the city directory, reduced motion, cited news and its sandboxed source frame, and modal chat. There was no page-width overflow in these states. The forecast pattern and screen-reader data table remain available. These checks do not replace the remaining assistive-technology and usability review.
 
+The subsequent error audit repeated those checks and exercised 20 failure/recovery paths. Search dismissal no longer reopens hidden choices through native search-field behavior. Cancelled chat research clears its busy state, and unverified news has an explicit retry. See [AUDIT.md](./AUDIT.md).
+
 After the partner-data integration on 2026-10-24, Chrome checks also covered the supplied violent/property values, keyboard category switching without focus loss, historical forecast years, Honolulu's unavailable state, data-load failure/retry, chart-to-guide focus transfer, mobile chat containment, and map-dot selection. At 1440×1000, 390×844, 320×568, and 844×390, the tested welcome/comparison/guide states had no axe-core WCAG A/AA violations or page-width overflow. All 644 supplied category records were checked through the actual data provider for matching GEOID, national category, and reporting year. These checks do not independently verify the model or certify accessibility.
 
 ## Remaining review

@@ -5,14 +5,14 @@ The website serves saved forecasts; no running model is required.
 ## Refresh
 
 ```sh
-node scripts/import-partner.mjs /path/to/HackathonGroup-main --prefer-frontend-forecasts
+node scripts/import-partner.mjs /path/to/HackathonGroup-main
 npm run check
 npm test
 ```
 
-The explicit flag uses `frontend_forecasts.csv` when the redundant combined export contains older predictions. City IDs, reporting years, observed rates, national values, and the four-year horizon still require agreement. Without the flag, every value must agree.
+Every value must agree across the current exports, including city IDs, reporting years, observed rates, predictions, national values, and the four-year horizon. The legacy `--prefer-frontend-forecasts` flag is available for explicitly reviewed older handoffs; the current snapshot needs no override.
 
-Inputs: `exports/frontend_forecasts.csv`, `exports/national_rates_by_year.csv`, and `exports/city_forecasts_vs_national.csv`. Validation comes from `models/training_summary.json`, with the README summary as a fallback. Original inputs and SHA-256 hashes are retained outside the published assets.
+Inputs: `exports/frontend_forecasts.csv`, `exports/national_rates_by_year.csv`, and `exports/city_forecasts_vs_national.csv`. Validation comes from `models/training_summary.json`, with the README summary as a fallback. Original inputs and SHA-256 hashes are retained outside the published assets. Git attributes preserve their exact bytes across operating systems.
 
 ## Chart contract
 
@@ -42,8 +42,16 @@ Return geoid, unit (`per100000`), metric definition, baselineYear, currentRate, 
 
 `POST /api/ai/research` and `POST /api/ai/chat` accept a city GEOID, category, and optional question. `GET /api/ai/status` returns connection status without secrets.
 
-`server/gemma.js` uses Gemma as its only model. Recent coverage comes from the Google News RSS feed for the city (a plain HTTP fetch, no model and no Gemini call); each feed item carries its headline, publisher, and publication date. Gemma then picks the headlines relevant to the city and question and writes a short review. Only source IDs from the fetched feed are accepted. Recent means the past 90 days. A failed feed fetch is distinct from no relevant coverage. News never modifies model values. Results cache for 15 minutes.
+`server/gemma.js` uses Gemma for every AI call. Chat receives server-owned chart data for both crime categories, reporting years, national benchmarks, percentage comparisons, and the model's evaluation report and actual feature names. A bounded Gemma action loop can look up other supported cities and request news. The client supplies up to eight recent conversation messages; changing the selected city or category resets that context. User-supplied numbers never replace the server snapshot. Per-city input values and individual feature contributions are not part of the website export; the assistant must not invent them.
 
-Set `GEMINI_API_KEY` (a Google AI Studio key) in `.env.local` locally and as a secret through Sites runtime environment variables in production. `GEMMA_MODEL` is an optional override and must be a `gemma-*` model id. Keys stay outside source and browser responses.
+Chat uses Gemma 4 26B A4B; news search and synthesis use Gemma 4 31B with its Google Search tool. Live capability checks found 26B search unreliable in minimal thinking and slow with high thinking; 31B returned grounded news in about eight seconds with minimal thinking. The server reads publisher pages directly to verify dates, headlines and available article text. The tested hosted URL-context call returned HTTP 400 and is not used. Blocked or undated sources are skipped, never replaced with another model family. Only retrieved source IDs are allowed. Recent means the past 90 days. Failed verification stays distinct from no relevant coverage. News never changes the forecast. Responses cache for 15 minutes, with chat history and both model IDs included in the cache key.
+
+Set `GEMINI_API_KEY` in `.env.local` locally and as a Sites runtime secret in production. This is Google's credential name, not a Gemini model selection; `GOOGLE_AI_API_KEY` is also accepted. `GEMMA_MODEL` and `GEMMA_RESEARCH_MODEL` may select only `gemma-*` models; other model families are rejected. `GOOGLE_SEARCH_MODEL` is no longer used. Keys stay outside source and browser responses.
 
 The supported server build uses Vinext and the Sites Vite integration. `web/` is authored frontend source; `public/` and `dist/` are generated. Run `npm run build` with Node 22.13+ before publication. `npm run preview:local` runs the shared API handler and map through Node on machines that cannot run the Cloudflare emulator.
+
+## Combined website updates
+
+The Home fit quiz retains the team’s budget, bedroom, bathroom and floor-area choices, filtered Zillow links and tailored Gemma news requests. Choices are stored locally and included in the submitted Gemma question and Zillow link. No Zillow listings are fetched.
+
+News first uses the live-tested Gemma 4 search pipeline. The team’s direct Google News RSS reader is retained as a fallback when search fails or its sources cannot be read. RSS fallback summaries are restricted to dated headlines; they do not claim full-article verification. All AI calls remain Gemma-only. The Windows path separator fix is retained in the preview server.

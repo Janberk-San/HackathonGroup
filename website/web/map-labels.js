@@ -43,6 +43,9 @@ export function stateLabelFeatures(regions, zoom) {
 
 export function regionalBasemapLayers(layers) {
   return layers.map(layer => {
+    if (layer.type === 'symbol' && layer.layout?.['text-field']) {
+      layer = {...layer, paint:{...layer.paint, 'text-color':'#000'}};
+    }
     if (['label_city', 'label_city_capital', 'label_town'].includes(layer.id)) {
       return {...layer, minzoom:Math.max(layer.minzoom ?? 0, 7)};
     }
@@ -64,5 +67,5 @@ export const stateLabelsLayer = {
     'text-padding':3, 'text-variable-anchor':['center','top','bottom','left','right'],
     'text-radial-offset':.4,
   },
-  paint:{'text-color':'#3c5870', 'text-halo-color':'#ffffff', 'text-halo-width':2, 'text-halo-blur':.2},
+  paint:{'text-color':'#000', 'text-halo-color':'#ffffff', 'text-halo-width':2, 'text-halo-blur':.2},
 };

@@ -10,15 +10,15 @@
     "sourceFiles": [
       {
         "filename": "exports/frontend_forecasts.csv",
-        "sha256": "ece1baa3c427be245cef8555548fcc3e65871c5c002ec8772f6cc512f5ce5c84"
+        "sha256": "4bce606e0fc2ca5918709e1c01e1095ea80ef5a9b413bf82d995ae97ce60f30d"
       },
       {
         "filename": "exports/national_rates_by_year.csv",
-        "sha256": "08b735a5f54758d302b03596ec3d9a1ebfba68020c782fe91509f587dfa3559a"
+        "sha256": "49270c5c20172419a56d08c3dff55e2d464552227a0e45f61cf032c50c6405f8"
       },
       {
         "filename": "exports/city_forecasts_vs_national.csv",
-        "sha256": "6457a1d0996e482b49633a4b1533cd1631430b05121799867178eb82c0c95cfd"
+        "sha256": "29366e47163b1380a6dbe9eb2a3209e2cd01a992e094db5cdbbe5494b43a1d88"
       }
     ],
     "forecastSource": "exports/frontend_forecasts.csv",
@@ -48,7 +48,7 @@
           "noChangeMedianRateErrorPct": 15.912697672898712
         }
       },
-      "sourceSha256": "f87376dee12aca80b46345c3be3f916b6a1d1a24ac6d8cd3da8af96ffd719e73"
+      "sourceSha256": "9b075215bdfb66d826b28ad4e902c1c56bca2e609840e37011ebae9c6f2a7ee4"
     },
     "validationNote": "Evaluation results are recorded in the model details.",
     "geographyNote": "City GEOIDs identify map locations. Crime rates use matched law-enforcement agency jurisdictions; their boundaries may differ from city boundaries.",

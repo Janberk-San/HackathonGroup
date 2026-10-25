@@ -85,7 +85,7 @@ export function initializeWorkspace({getCities, getCityStatus, chooseCity, panMa
     document.body.dataset.reducedMotion = String(!reducedMotion());
     try { localStorage.setItem('gaurd-reduced-motion', String(reducedMotion())); } catch { /* The control still works without storage. */ }
     savedMotion = String(reducedMotion());
-    $('#motion-description').textContent = reducedMotion() ? 'Reduced motion is on. Map transitions and companion animations are paused.' : 'Motion is on. You can turn reduced motion on at any time.';
+    $('#motion-description').textContent = reducedMotion() ? 'Reduced motion is on. Map transitions are paused.' : 'Motion is on. You can turn reduced motion on at any time.';
     refreshMotionControl();
   });
   motionPreference.addEventListener('change', () => {

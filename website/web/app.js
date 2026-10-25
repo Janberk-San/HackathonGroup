@@ -2,9 +2,9 @@ import { areaDataProvider } from './data-service.js';
 import { normalizeCityComparison, renderCrimeComparison } from './crime-comparison.js';
 import { regionalBasemapLayers, stateLabelFeatures, stateLabelsLayer } from './map-labels.js';
 import { initializeWorkspace, mapPadding, reducedMotion } from './workspace.js';
-import { describeComparison, guideReply } from './data-guide.js';
+import { guideReply } from './data-guide.js';
 import { containPopupScroll } from './map-hover.js';
-import { aiStatus, requestGemma, renderReview } from './research.js';
+import { aiStatus, requestGemma, renderReview, answerText } from './research.js';
 import { setupHomeQuiz, homeQuizQuestion, describeHomeProfile, zillowSearchUrl } from './home-quiz.js';
 
 const $ = s => document.querySelector(s);
@@ -66,10 +66,10 @@ async function loadIndex() {
   if(regional.status==='fulfilled')regions=regional.value.filter(region=>region.countryCode==='US');else regionIndexError=true;
   if(catalog.status==='fulfilled')cities=catalog.value.cities.filter(city=>city.countryCode==='US');else catalogError=true;
   $('#city-coverage').textContent=catalogError?'City list unavailable. Try reloading.':`${cities.length.toLocaleString()} U.S. cities`;
-  if(capabilities.status==='fulfilled'&&capabilities.value.forecastCityCount)$('#city-coverage').textContent=`${capabilities.value.forecastCityCount.toLocaleString()} city forecasts`;
+  if(!catalogError&&capabilities.status==='fulfilled'&&capabilities.value.forecastCityCount)$('#city-coverage').textContent=`${capabilities.value.forecastCityCount.toLocaleString()} city forecasts`;
   $('#suggested-areas').replaceChildren();
   for(const geoid of ['2507000','1714000','4805000']){const city=cities.find(c=>c.geoid===geoid);if(city)$('#suggested-areas').append(regionButton(city));}
-  if(!cities.length)$('#suggested-areas').textContent='The city list is temporarily unavailable. Regional search is still available.';
+  if(!cities.length)$('#suggested-areas').textContent=regions.length?'The city list is temporarily unavailable. Search for a state.':'Places could not load. Reload to try again.';
   syncCityMarkers();
   syncStateLabels();
   workspace.refreshCityList();
@@ -98,13 +98,15 @@ document.querySelectorAll('[data-tab]').forEach(button => {
 
 async function selectArea(region, { navigate = true, focus = true } = {}) {
   if(region?.countryCode!=='US')return;
+  cancelChatResearch();
   if (mapReady && selectedArea) map.setFeatureState({ source: areaSource(selectedArea), id: selectedArea.id }, { selected: false });
   selectedArea = region;
+  syncChatContext(true);
   selectedComparison=null;
   workspace.setPanelExpanded(true);
   $('#welcome-panel').hidden = true; $('#selected-panel').hidden = false;
-  $('#area-name').textContent = region.name; $('#area-country').textContent = isCity(region) ? `${region.stateName} · ${region.stateAbbr}` : region.country;
-  $('#area-kind').textContent = isCity(region) ? 'City comparison · Per 100,000 people' : `${region.type || 'Region'} · Choose a supported city`;
+  $('#area-name').textContent = region.name; $('#area-country').textContent = isCity(region) ? region.stateName : region.country;
+  $('#area-kind').textContent = isCity(region) ? '' : `${region.type || 'Region'} · Choose a supported city`;
   $('.area-sidebar').scrollTop = 0;
   switchTab('overview');
   $('#city-overview').hidden=!isCity(region);$('#region-overview').hidden=isCity(region);
@@ -151,7 +153,7 @@ async function loadComparison(){
   try {
     if(isCity(region)){
       const comparison=await areaDataProvider.getCityComparison(region.geoid,{metric:selectedMetric,signal:request.signal});
-      if(!request.signal.aborted&&selectedArea?.id===region.id){selectedComparison=comparison;renderCrimeComparison($('#city-comparison'),comparison,region.name);$('#city-result-summary').textContent=comparison.status==='ready'?`${comparison.metric.label} · ${comparison.baselineYear} reported → ${comparison.predictedYear} forecast.`:'No forecast available.';announce(`${region.name}: ${comparison.metric.label} comparison ${comparison.status==='ready'?'loaded':'unavailable'}.`);}
+      if(!request.signal.aborted&&selectedArea?.id===region.id){selectedComparison=comparison;renderCrimeComparison($('#city-comparison'),comparison,region.name);$('#city-result-summary').textContent=comparison.status==='ready'?'':comparison.status==='partial'?'Some rates are unavailable.':'No forecast available.';announce(`${region.name}: ${comparison.metric.label} comparison ${comparison.status==='ready'?'loaded':'unavailable'}.`);}
     }else await areaDataProvider.getAreaSummary(region.id,{signal:request.signal});
   }catch(error){if(error.name!=='AbortError'&&!request.signal.aborted&&selectedArea?.id===region.id){
     if(isCity(region)){renderCrimeComparison($('#city-comparison'),emptyComparison(region.geoid),region.name,{error});$('#retry-city-data').hidden=false;$('#city-result-summary').textContent='The data could not be loaded. Open the comparison to retry.';}
@@ -159,7 +161,7 @@ async function loadComparison(){
   }}
 }
 $('#retry-city-data').addEventListener('click',loadComparison);
-document.querySelectorAll('[name="crime-metric"]').forEach(input=>input.addEventListener('change',()=>{if(!input.checked)return;selectedMetric=input.value;updateSelectionUrl();loadComparison();}));
+document.querySelectorAll('[name="crime-metric"]').forEach(input=>input.addEventListener('change',()=>{if(!input.checked)return;cancelChatResearch();selectedMetric=input.value;syncChatContext(true);updateSelectionUrl();loadComparison();}));
 
 function focusArea(region) {
   if (!map) return;
@@ -171,8 +173,10 @@ function focusArea(region) {
 }
 
 function clearSelection() {
+  cancelChatResearch();
   if (selectedArea && mapReady) map.setFeatureState({ source: areaSource(selectedArea), id: selectedArea.id }, { selected: false });
   selectedRequest?.abort(); selectedArea = null;selectedComparison=null;
+  syncChatContext(true);
   $('#area-search').value = '';
   $('#selected-panel').hidden = true; $('#welcome-panel').hidden = false;
   const url = new URL(location.href); url.searchParams.delete('area');url.searchParams.delete('city');url.searchParams.delete('metric'); history.replaceState(null, '', url);
@@ -210,9 +214,9 @@ function closeSearch() { $('#search-results').hidden = true; workspace.announceS
 $('#area-search').addEventListener('input', renderSearch);
 $('#area-search').addEventListener('focus', renderSearch);
 $('#area-search').addEventListener('keydown', event => {
-  if (event.key === 'Enter') { event.preventDefault(); $('#search-results .search-result')?.click(); }
-  if (event.key === 'ArrowDown') { event.preventDefault(); $('#search-results .search-result')?.focus(); }
-  if (event.key === 'Escape') closeSearch();
+  if (event.key === 'Enter') { event.preventDefault(); if(!$('#search-results').hidden)$('#search-results .search-result')?.click(); }
+  if (event.key === 'ArrowDown') { event.preventDefault(); if($('#search-results').hidden)renderSearch(); $('#search-results .search-result')?.focus(); }
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSearch(); }
 });
 $('#search-results').addEventListener('keydown', event => {
   const buttons = [...$('#search-results').querySelectorAll('button')], index = buttons.indexOf(document.activeElement);
@@ -284,11 +288,7 @@ async function initializeMap() {
         popupDismissed = false;
       }
       map.getCanvas().style.cursor = 'pointer';
-      if ((!event.originalEvent.pointerType || event.originalEvent.pointerType === 'mouse') && (changed || !popup.isOpen())) {
-        const content = document.createElement('div'); content.textContent = feature.properties.name;
-        const country = document.createElement('div'); country.className = 'hover-country'; country.textContent = feature.properties.country; content.append(country);
-        showMapPopup(event.lngLat,content);
-      }
+
     });
     map.on('mouseleave', 'region-fill', () => {
       if (hoveredId) map.setFeatureState({source:'regions',id:hoveredId},{hover:false});
@@ -341,19 +341,32 @@ $('#zoom-in').addEventListener('click', () => map?.zoomIn({ duration: motion()/2
 $('#zoom-out').addEventListener('click', () => map?.zoomOut({ duration: motion()/2 }));
 $('#retry-map').addEventListener('click', () => location.reload());
 
-let chatOpened = false, chatTrigger, aiConfigured=false, chatRequest;
-aiStatus().then(status=>{aiConfigured=status.configured;$('#ai-connection-status').textContent=aiConfigured?'News research & chart help':'Data guide · Gemma not connected';}).catch(()=>{$('#ai-connection-status').textContent='Gemma unavailable';});
+let chatOpened = false, chatTrigger, aiConfigured=false, chatRequest, pendingChatMessage, chatHistory=[];
+function cancelChatResearch(){
+  chatRequest?.abort();chatRequest=null;
+  if(pendingChatMessage){pendingChatMessage.textContent='Response stopped.';pendingChatMessage.removeAttribute('aria-busy');pendingChatMessage=null;}
+}
+function checkAIConnection(){return aiStatus().then(status=>{aiConfigured=status.configured;$('#ai-connection-status').textContent=aiConfigured?'City data & local news':'Data guide · Gemma not connected';}).catch(()=>{aiConfigured=false;$('#ai-connection-status').textContent='Gemma unavailable';});}
+const connectionReady=checkAIConnection();
+function chatGreeting(){return isCity(selectedArea)?`I can explain ${selectedArea.name}’s numbers, compare another city, or check local news. What would you like to know?`:'I can explain crime data, compare cities, or check local news. Tell me a city and state to get started.';}
+function syncChatContext(reset=false){
+  const city=isCity(selectedArea);
+  $('#chat-context').textContent=city?`${selectedArea.name}, ${selectedArea.stateAbbr} · ${metricDefinitions[selectedMetric].label}`:'Ask about a U.S. city';
+  const suggestions=city?[['Explain this city’s crime outlook in simple terms.','Explain chart'],['What does recent local news say about this city?','Local news'],['How accurate are these forecasts?','Model accuracy']]:[['How can you help me explore cities?','Get started'],['How do I compare two cities?','Compare cities'],['How accurate are the forecasts?','Model accuracy']];
+  document.querySelectorAll('.chat-suggestions [data-question]').forEach((button,index)=>{button.dataset.question=suggestions[index][0];button.textContent=suggestions[index][1];});
+  if(reset){chatHistory=[];if(chatOpened){$('#chat-messages').replaceChildren();addChatMessage(chatGreeting());}}
+}
 function addChatMessage(text, role = 'assistant') {
   const message = document.createElement('p'); message.className = `chat-message ${role}`; message.textContent = text; $('#chat-messages').append(message); $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
 }
 function toggleChat(open) {
+  if(!open)cancelChatResearch();
   if(open && $('#chat-panel').hidden) chatTrigger = document.activeElement;
   if(open) $('.pan-controls').open=false;
   $('#chat-panel').hidden = !open; $('#companion-toggle').setAttribute('aria-expanded', String(open));
   $('#companion-toggle').setAttribute('aria-label', open ? 'Close Gemma companion' : 'Open Gemma companion');
-  $('#companion-caption').hidden = open;
   document.body.classList.toggle('chat-open',open);
-  if (open && !chatOpened) { addChatMessage('Hi! Ask about this city’s outlook or recent local news. ✦'); chatOpened = true; }
+  if (open && !chatOpened) { addChatMessage(chatGreeting()); chatOpened = true; }
   syncChatModality();
   if(open) $('#chat-input').focus(); else (chatTrigger?.checkVisibility()?chatTrigger:$('#companion-toggle')).focus({preventScroll:true});
 }
@@ -367,7 +380,7 @@ function syncChatModality() {
 window.addEventListener('resize',syncChatModality);
 $('#chat-panel').addEventListener('keydown',event=>{
   if(event.key!=='Tab'||$('#chat-panel').getAttribute('aria-modal')!=='true')return;
-  const controls=[...$('#chat-panel').querySelectorAll('button,input')].filter(el=>el.checkVisibility()),first=controls[0],last=controls.at(-1);
+  const controls=[...$('#chat-panel').querySelectorAll('button,input,a[href],[tabindex="0"],iframe')].filter(el=>el.checkVisibility()),first=controls[0],last=controls.at(-1);
   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
 });
@@ -376,20 +389,30 @@ $('#close-chat').addEventListener('click', () => toggleChat(false));
 $('#chat-scrim').addEventListener('click',()=>toggleChat(false));
 $('#ask-area').addEventListener('click', () => {
   toggleChat(true);
-  if (selectedArea) addChatMessage(isCity(selectedArea)?describeComparison(selectedComparison,`${selectedArea.name}, ${selectedArea.stateAbbr}`):`You’re exploring ${selectedArea.name}. Select one of its supported cities to open a crime-rate comparison.`);
+  if (selectedArea) replyToQuestion(isCity(selectedArea)?'Explain this city’s crime outlook in simple terms.':`Which cities can I explore in ${selectedArea.name}?`);
 });
 $('#ask-comparison').addEventListener('click',()=>{
   const dialog=$('#comparison-dialog');
-  dialog.addEventListener('close',()=>{toggleChat(true);addChatMessage(describeComparison(selectedComparison,`${selectedArea.name}, ${selectedArea.stateAbbr}`));},{once:true});
+  dialog.addEventListener('close',()=>{toggleChat(true);replyToQuestion('Explain this city’s crime outlook in simple terms.');},{once:true});
   dialog.close('open-guide');
 });
 async function replyToQuestion(question) {
+  cancelChatResearch();
   addChatMessage(question, 'user');
-  if(!isCity(selectedArea)||!aiConfigured){addChatMessage(guideReply(question,{comparison:selectedComparison,cityName:isCity(selectedArea)?`${selectedArea.name}, ${selectedArea.stateAbbr}`:undefined}));return;}
-  chatRequest?.abort();const request=new AbortController();chatRequest=request;
-  const message=document.createElement('div');message.className='chat-message assistant';message.textContent='Researching recent coverage…';$('#chat-messages').append(message);$('#chat-messages').scrollTop=$('#chat-messages').scrollHeight;
-  try{const review=await requestGemma({geoid:selectedArea.geoid,metric:selectedMetric,question},{signal:request.signal,chat:true});if(!request.signal.aborted)renderReview(message,review);}
-  catch(error){if(error.name!=='AbortError')message.textContent=error.message;}
+  const request=new AbortController();chatRequest=request;
+  const message=document.createElement('div');message.className='chat-message assistant';message.textContent='Gemma is thinking…';message.setAttribute('aria-busy','true');pendingChatMessage=message;$('#chat-messages').append(message);$('#chat-messages').scrollTop=$('#chat-messages').scrollHeight;
+  try{
+    await connectionReady;if(!aiConfigured&&!request.signal.aborted)await checkAIConnection();if(request.signal.aborted)return;
+    if(!aiConfigured){message.textContent=guideReply(question,{comparison:selectedComparison,cityName:isCity(selectedArea)?`${selectedArea.name}, ${selectedArea.stateAbbr}`:undefined});return;}
+    const review=await requestGemma({geoid:isCity(selectedArea)?selectedArea.geoid:undefined,metric:selectedMetric,question,history:chatHistory},{signal:request.signal,chat:true});
+    if(!request.signal.aborted){
+      renderReview(message,review,{onCitySelect:city=>{const area=cities.find(item=>item.geoid===city.geoid);if(area){toggleChat(false);selectArea(area);}}});
+      chatHistory=[...chatHistory,{role:'user',text:question},{role:'assistant',text:answerText(review)}].slice(-8);
+      message.scrollIntoView({behavior:'instant',block:'nearest'});
+    }
+  }
+  catch(error){if(error.name!=='AbortError'){message.textContent=error.message;const retry=document.createElement('button');retry.type='button';retry.className='text-button chat-retry';retry.textContent='Try again';retry.addEventListener('click',()=>replyToQuestion(question));message.append(retry);}}
+  finally{message.removeAttribute('aria-busy');if(chatRequest===request){chatRequest=null;pendingChatMessage=null;}}
 }
 let reviewRequest;
 let lastResearchOptions={};
@@ -400,7 +423,7 @@ async function openResearch({question,note,link}={}){
  $('#research-city').textContent=`${selectedArea.name}, ${selectedArea.stateAbbr}`;$('#research-note').replaceChildren(note??'');if(note&&link){const anchor=document.createElement('a');anchor.href=link;anchor.target='_blank';anchor.rel='noreferrer noopener';anchor.textContent='Open this search on Zillow ↗';$('#research-note').append(' ',anchor);}$('#research-note').hidden=!note;
  $('#research-content').replaceChildren();$('#research-status').textContent='Researching recent coverage…';$('#retry-research').hidden=true;
  workspace.openDialog('research-dialog');
- try{const review=await requestGemma({geoid:selectedArea.geoid,metric:selectedMetric,...(question?{question}:{})},{signal:request.signal});if(!request.signal.aborted){$('#research-status').textContent='';renderReview($('#research-content'),review);}}
+ try{const review=await requestGemma({geoid:selectedArea.geoid,metric:selectedMetric,...(question?{question}:{})},{signal:request.signal});if(!request.signal.aborted){$('#research-status').textContent='';renderReview($('#research-content'),review);$('#retry-research').hidden=review.status!=='unverified';}}
  catch(error){if(error.name!=='AbortError'){$('#research-status').textContent=error.message;$('#retry-research').hidden=false;}}
 }
 $('#news-search-link').addEventListener('click',()=>openResearch());

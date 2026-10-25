@@ -5,7 +5,8 @@ import { initializeWorkspace, mapPadding, reducedMotion } from './workspace.js';
 import { guideReply } from './data-guide.js';
 import { containPopupScroll } from './map-hover.js';
 import { aiStatus, requestGemma, renderReview, answerText } from './research.js';
-import { setupHomeQuiz, homeQuizQuestion, describeHomeProfile, zillowSearchUrl } from './home-quiz.js';
+import { requestHomeMatch, renderHomeMatch } from './home-match.js';
+import { setupHomeQuiz, describeHomeProfile } from './home-quiz.js';
 
 const $ = s => document.querySelector(s);
 const icons = {
@@ -415,30 +416,35 @@ async function replyToQuestion(question) {
   finally{message.removeAttribute('aria-busy');if(chatRequest===request){chatRequest=null;pendingChatMessage=null;}}
 }
 let reviewRequest;
-let lastResearchOptions={};
-async function openResearch({question,note,link}={}){
- lastResearchOptions={question,note,link};
+let lastResearchAction=null;
+async function openResearch({question,note}={}){
+ lastResearchAction=()=>openResearch({question,note});
  if(!isCity(selectedArea))return;
  reviewRequest?.abort();const request=new AbortController();reviewRequest=request;
- $('#research-city').textContent=`${selectedArea.name}, ${selectedArea.stateAbbr}`;$('#research-note').replaceChildren(note??'');if(note&&link){const anchor=document.createElement('a');anchor.href=link;anchor.target='_blank';anchor.rel='noreferrer noopener';anchor.textContent='Open this search on Zillow ↗';$('#research-note').append(' ',anchor);}$('#research-note').hidden=!note;
+ $('#research-city').textContent=`${selectedArea.name}, ${selectedArea.stateAbbr}`;$('#research-eyebrow').textContent='Local news';$('#research-note').textContent=note??'';$('#research-note').hidden=!note;
  $('#research-content').replaceChildren();$('#research-status').textContent='Researching recent coverage…';$('#retry-research').hidden=true;
  workspace.openDialog('research-dialog');
  try{const review=await requestGemma({geoid:selectedArea.geoid,metric:selectedMetric,...(question?{question}:{})},{signal:request.signal});if(!request.signal.aborted){$('#research-status').textContent='';renderReview($('#research-content'),review);$('#retry-research').hidden=review.status!=='unverified';}}
  catch(error){if(error.name!=='AbortError'){$('#research-status').textContent=error.message;$('#retry-research').hidden=false;}}
 }
 $('#news-search-link').addEventListener('click',()=>openResearch());
-$('#retry-research').addEventListener('click',()=>openResearch(lastResearchOptions));
+$('#retry-research').addEventListener('click',()=>lastResearchAction?.());
 $('#research-dialog').addEventListener('close',()=>reviewRequest?.abort());
 $('#research-comparison').addEventListener('click',()=>{const dialog=$('#comparison-dialog');dialog.addEventListener('close',()=>openResearch(),{once:true});dialog.close('open-review');});
 function openHomeQuiz(opener){if(isCity(selectedArea))workspace.openDialog('home-quiz-dialog',opener);}
 $('#home-quiz-link').addEventListener('click',event=>openHomeQuiz(event.currentTarget));
 $('#home-quiz-comparison').addEventListener('click',()=>{const dialog=$('#comparison-dialog');dialog.addEventListener('close',()=>openHomeQuiz($('#home-quiz-link')),{once:true});dialog.close('open-quiz');});
-setupHomeQuiz($('#home-quiz-form'),answers=>{
- const city=`${selectedArea.name}, ${selectedArea.stateAbbr}`,link=zillowSearchUrl(answers,city);
- $('#home-quiz-dialog').close('quiz-submitted');
- if(link)window.open(link,'_blank','noopener,noreferrer');
- openResearch({question:homeQuizQuestion(answers,city),note:`Asked about ${describeHomeProfile(answers)}.`,link});
-});
+async function openHomeMatch(answers){
+ if(!isCity(selectedArea))return;
+ reviewRequest?.abort();const request=new AbortController();reviewRequest=request;lastResearchAction=()=>openHomeMatch(answers);
+ $('#research-eyebrow').textContent='Home match';$('#research-city').textContent=`${selectedArea.name}, ${selectedArea.stateAbbr}`;
+ $('#research-note').textContent=`Asked about ${describeHomeProfile(answers)}.`;$('#research-note').hidden=false;
+ $('#research-content').replaceChildren();$('#research-status').textContent='Searching current listings…';$('#retry-research').hidden=true;
+ workspace.openDialog('research-dialog');
+ try{const result=await requestHomeMatch({geoid:selectedArea.geoid,answers},{signal:request.signal});if(!request.signal.aborted){$('#research-status').textContent='';renderHomeMatch($('#research-content'),result);$('#retry-research').hidden=result.status!=='unverified';}}
+ catch(error){if(error.name!=='AbortError'){$('#research-status').textContent=error.message;$('#retry-research').hidden=false;}}
+}
+setupHomeQuiz($('#home-quiz-form'),answers=>{$('#home-quiz-dialog').close('quiz-submitted');openHomeMatch(answers);});
 $('#chat-form').addEventListener('submit', event => { event.preventDefault(); const question = $('#chat-input').value.trim(); if (!question) return; $('#chat-input').value = ''; replyToQuestion(question); });
 document.querySelectorAll('[data-question]').forEach(button => button.addEventListener('click', () => replyToQuestion(button.dataset.question)));
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#chat-panel').hidden && !document.querySelector('dialog[open]')) toggleChat(false); });

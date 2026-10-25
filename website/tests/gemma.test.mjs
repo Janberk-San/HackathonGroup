@@ -23,6 +23,24 @@ test('Gemma performs both search and synthesis using only grounded evidence',asy
  assert.equal(result.status,'ready');assert.equal(requests.length,2);assert.deepEqual(requests[0].body.tools,[{googleSearch:{}}]);assert.equal(requests[1].body.tools,undefined);
  assert.ok(requests.every(request=>/gemma-4-31b-it:generateContent$/.test(request.url)));assert.equal(requests[0].body.generationConfig.thinkingConfig.thinkingLevel,'minimal');assert.equal(requests[0].options.headers['x-goog-api-key'],'test-key');assert.doesNotMatch(requests[0].url,/test-key/);assert.match(requests[1].body.contents[0].parts[0].text,/Allowed sources/);
 });
+test('home match searches with the research model first, then applies the requested wording to the grounded research only',async()=>{
+ const homeAnswers={price:'250k-500k',beds:'3',baths:'2',sqft:'1500-2000'};
+ const research={candidates:[{content:{parts:[{text:'1. 314 Hog Eye Rd, Abilene, TX 79602 - $340,000 - 3 beds - 2 baths - 1,653 sqft (Redfin)'}]},groundingMetadata:{webSearchQueries:['Abilene TX homes'],groundingChunks:[{web:{uri:'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc',title:'redfin.com'}},{web:{uri:'javascript:alert(1)',title:'bad'}}],searchEntryPoint:{renderedContent:'<div>suggestions</div>'}}}]};
+ const pick={candidates:[{content:{parts:[{text:JSON.stringify({found:true,address:'314 Hog Eye Rd, Abilene, TX 79602',price:'$340,000',beds:'3',baths:'2',sqft:'1,653',highlights:'Granite kitchen [1].',reason:'Fits every filter.',summary:'One listing fits.'})}]}}]};
+ const requests=[];const req=body=>new Request('https://gaurd.test/api/ai/homes',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+ const fetcher=async(url,options)=>{const body=JSON.parse(options.body);requests.push({url,body});return Response.json(body.tools?research:pick);};
+ const response=await handleAI(req({geoid:'2507000',answers:homeAnswers}),{GEMINI_API_KEY:'k'},{fetcher,now});const result=await response.json();
+ assert.equal(response.status,200);assert.equal(result.kind,'home_match');assert.equal(result.status,'ready');assert.equal(result.match.address,'314 Hog Eye Rd, Abilene, TX 79602');assert.equal(result.match.highlights,'Granite kitchen.');assert.equal(result.model,'gemma-4-26b-a4b-it');assert.equal(result.searchModel,'gemma-4-31b-it');
+ assert.equal(requests.length,2);assert.match(requests[0].url,/gemma-4-31b-it:generateContent$/);assert.match(requests[1].url,/gemma-4-26b-a4b-it:generateContent$/);
+ assert.deepEqual(requests[0].body.tools,[{googleSearch:{}}]);assert.match(requests[0].body.contents[0].parts[0].text,/^Find the best matches for a house for sale in Boston, MA priced between \$250k–\$500k with 3 beds, 2 baths and 1,500–2,000 sqft\. Search the web/);assert.equal(requests[0].body.systemInstruction,undefined);
+ assert.equal(requests[1].body.tools,undefined);const prompt=requests[1].body.contents[0].parts[0].text;assert.match(prompt,/^Pull me the best match for a house listed on Zillow: https:\/\/www\.zillow\.com\/homes\/for_sale\/\?searchQueryState=/);assert.match(prompt,/located in Boston, MA between \$250k–\$500k with 2 baths and 3 beds and 1,500–2,000 sqft\./);assert.match(prompt,/314 Hog Eye Rd/);
+ assert.deepEqual(result.sources,[{id:1,url:'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc',title:'redfin.com'}]);assert.equal(result.searchSuggestions,'<div>suggestions</div>');assert.match(result.zillowUrl,/^https:\/\/www\.zillow\.com\/homes\/for_sale\//);
+ assert.equal((await handleAI(req({geoid:'2507000',answers:{...homeAnswers,beds:'30'}}),{GEMINI_API_KEY:'k'},{fetcher,now})).status,400);
+ assert.equal((await handleAI(req({answers:homeAnswers}),{GEMINI_API_KEY:'k'},{fetcher,now})).status,400);
+ let calls=0;const ungroundedFetcher=async()=>{calls++;return Response.json({candidates:[{content:{parts:[{text:'Here are some listings: 1 Made Up St, $1'}]}}]});};
+ const ungrounded=await (await handleAI(req({geoid:'2507000',answers:{...homeAnswers,sqft:'over-3000'}}),{GEMINI_API_KEY:'k'},{fetcher:ungroundedFetcher,now})).json();
+ assert.equal(ungrounded.status,'unverified');assert.equal(ungrounded.match,null);assert.deepEqual(ungrounded.sources,[]);assert.equal(calls,2);
+});
 test('API validates inputs, preserves secret values, and distinguishes missing configuration from no news',async()=>{
  const req=(body,headers={})=>new Request('https://gaurd.test/api/ai/research',{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
  const missing=await handleAI(req({geoid:'2507000',metric:'violent'}),{});assert.equal(missing.status,503);assert.equal((await missing.json()).code,'not_configured');

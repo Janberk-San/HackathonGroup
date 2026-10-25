@@ -485,3 +485,12 @@ html.chat-modal { overflow:hidden; }
 .quiz-options input:focus-visible+span { outline:3px solid var(--focus); outline-offset:3px; }
 #home-quiz-form .primary-button { width:100%; margin-top:8px; }
 @media (forced-colors: active) { .quiz-options input:checked+span { outline:2px solid Highlight; outline-offset:-3px; } }
+
+/* Home match */
+.home-match { margin:12px 0 4px; padding:14px 0 6px; border-top:1px solid var(--line); }
+.home-match h3 { margin:0 0 10px; font-size:1.125rem; font-weight:600; }
+.home-match dl { display:grid; grid-template-columns:auto 1fr; gap:4px 18px; margin:0 0 10px; }
+.home-match dt { font-size:.875rem; font-weight:600; margin:0; }
+.home-match dd { margin:0; }
+.home-match .home-reason { font-weight:500; }
+.home-sources,.home-zillow { font-size:.875rem; }

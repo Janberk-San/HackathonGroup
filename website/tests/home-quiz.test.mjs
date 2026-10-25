@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {HOME_QUIZ,validateHomeAnswers,describeHomeProfile,homeQuizQuestion,loadHomeProfile,zillowSearchUrl} from '../web/home-quiz.js';
+import {HOME_QUIZ,validateHomeAnswers,describeHomeProfile,homeQuizQuestion,homeMatchPrompt,loadHomeProfile,zillowSearchUrl} from '../web/home-quiz.js';
 const answers={price:'250k-500k',beds:'3',baths:'2',sqft:'1500-2000'};
 test('quiz covers price, beds, baths and square feet and rejects unknown answers',()=>{
  assert.deepEqual(HOME_QUIZ.map(question=>question.key),['price','beds','baths','sqft']);
@@ -14,6 +14,12 @@ test('the Gemma question describes the home in plain words and stays within the 
  assert.equal(homeQuizQuestion({price:'bogus'},'Boston, MA'),'');
  assert.equal(describeHomeProfile({price:'over-1m',beds:'5+',baths:'3+',sqft:'over-3000'}),'a home priced over $1M with 5+ beds, 3+ baths and over 3,000 square feet');
  assert.equal(loadHomeProfile(),null);
+});
+test('the home-match prompt follows the requested wording with the Zillow link, city and every filter',()=>{
+ const url=zillowSearchUrl(answers,'Abilene, TX');
+ assert.equal(homeMatchPrompt(answers,'Abilene, TX',url),`Pull me the best match for a house listed on Zillow: ${url} located in Abilene, TX between $250k–$500k with 2 baths and 3 beds and 1,500–2,000 sqft.`);
+ assert.match(homeMatchPrompt({price:'under-250k',beds:'5+',baths:'3+',sqft:'over-3000'},'Boston, MA','https://www.zillow.com/x'),/located in Boston, MA priced under \$250k with 3\+ baths and 5\+ beds and over 3,000 sqft\.$/);
+ assert.equal(homeMatchPrompt({price:'bogus'},'Boston, MA','https://www.zillow.com/x'),'');assert.equal(homeMatchPrompt(answers,'','https://www.zillow.com/x'),'');
 });
 test('the Zillow search carries the city and every filter, with open-ended ranges left unbounded',()=>{
  const url=zillowSearchUrl(answers,'Abilene, TX');assert.match(url,/^https:\/\/www\.zillow\.com\/homes\/for_sale\/\?searchQueryState=/);

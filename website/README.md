@@ -48,6 +48,6 @@ To regenerate the city catalog, download `2025_Gaz_place_national.zip` from the 
 
 ## Combined website updates
 
-The Home fit quiz retains the team’s budget, bedroom, bathroom and floor-area choices, filtered Zillow links and tailored Gemma news requests. Choices are stored locally and included in the submitted Gemma question and Zillow link. No Zillow listings are fetched.
+The Home fit quiz turns budget, bedroom, bathroom and floor-area choices into a Gemma home match: Gemma searches current for-sale listings with its Google Search tool and reports the best match, with the filtered Zillow search linked alongside. Choices are stored locally. The site itself never fetches or stores listings.
 
 News first uses the live-tested Gemma 4 search pipeline. The team’s direct Google News RSS reader is retained as a fallback when search fails or its sources cannot be read. RSS fallback summaries are restricted to dated headlines; they do not claim full-article verification. All AI calls remain Gemma-only. The Windows path separator fix is retained in the preview server.

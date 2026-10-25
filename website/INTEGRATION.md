@@ -48,10 +48,12 @@ Chat uses Gemma 4 26B A4B; news search and synthesis use Gemma 4 31B with its Go
 
 Set `GEMINI_API_KEY` in `.env.local` locally and as a Sites runtime secret in production. This is Google's credential name, not a Gemini model selection; `GOOGLE_AI_API_KEY` is also accepted. `GEMMA_MODEL` and `GEMMA_RESEARCH_MODEL` may select only `gemma-*` models; other model families are rejected. `GOOGLE_SEARCH_MODEL` is no longer used. Keys stay outside source and browser responses.
 
+`POST /api/ai/homes` takes a GEOID and the Home fit quiz `answers` (price, beds, baths, sqft option ids). `server/homes.js` works in two Gemma steps: a plain search request to the research model with Google Search grounding (retried once if Gemma answers without searching, since an ungrounded answer may be invented), then the chat model applies the quiz sentence with the filtered Zillow search link to that grounded research and returns the listing as JSON. Only a listing backed by grounding results is reported; otherwise the response is `unverified` or `no_match`. Google’s search suggestions are returned for display, as grounding requires. Listings never touch the model values.
+
 The supported server build uses Vinext and the Sites Vite integration. `web/` is authored frontend source; `public/` and `dist/` are generated. Run `npm run build` with Node 22.13+ before publication. `npm run preview:local` runs the shared API handler and map through Node on machines that cannot run the Cloudflare emulator.
 
 ## Combined website updates
 
-The Home fit quiz retains the team’s budget, bedroom, bathroom and floor-area choices, filtered Zillow links and tailored Gemma news requests. Choices are stored locally and included in the submitted Gemma question and Zillow link. No Zillow listings are fetched.
+The Home fit quiz turns budget, bedroom, bathroom and floor-area choices into a Gemma home match (`POST /api/ai/homes`, see the Gemma research section). Choices are stored locally. The site itself never fetches or stores listings.
 
 News first uses the live-tested Gemma 4 search pipeline. The team’s direct Google News RSS reader is retained as a fallback when search fails or its sources cannot be read. RSS fallback summaries are restricted to dated headlines; they do not claim full-article verification. All AI calls remain Gemma-only. The Windows path separator fix is retained in the preview server.

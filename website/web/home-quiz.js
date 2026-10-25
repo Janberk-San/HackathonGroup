@@ -31,6 +31,13 @@ export function zillowSearchUrl(answers,cityName){
  const state={usersSearchTerm:cityName.trim(),isMapVisible:true,isListVisible:true,filterState};
  return `https://www.zillow.com/homes/for_sale/?searchQueryState=${encodeURIComponent(JSON.stringify(state))}`;
 }
+export function homeAnswerLabels(answers){const valid=validateHomeAnswers(answers);if(!valid)return null;return Object.fromEntries(HOME_QUIZ.map(question=>[question.key,question.options.find(([option])=>option===valid[question.key])[1]]));}
+// The sentence sent to Gemma for the home match, in the wording the product owner asked for.
+export function homeMatchPrompt(answers,cityName,zillowUrl){
+ const labels=homeAnswerLabels(answers);if(!labels||typeof cityName!=='string'||!cityName.trim())return '';
+ const price=labels.price.includes('–')?`between ${labels.price}`:`priced ${labels.price.toLowerCase()}`,sqft=labels.sqft.includes('–')?labels.sqft:labels.sqft.toLowerCase();
+ return `Pull me the best match for a house listed on Zillow: ${zillowUrl} located in ${cityName.trim()} ${price} with ${labels.baths} and ${labels.beds} and ${sqft} sqft.`;
+}
 export function loadHomeProfile(){try{return validateHomeAnswers(JSON.parse(localStorage.getItem(STORAGE_KEY)??'null'));}catch{return null;}}
 export function saveHomeProfile(answers){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(answers));}catch{/* Optional per-browser convenience. */}}
 export function setupHomeQuiz(form,onSubmit){

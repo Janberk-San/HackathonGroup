@@ -1,5 +1,20 @@
 # HackathonGroup: city crime-rate forecasting (LightGBM)
 
+## GAURD website
+
+The interactive crime forecast map, comparison charts, and Gemma news research are in [`website/`](website/README.md).
+
+With Node.js 22.13 or newer:
+
+```sh
+cd website
+npm ci
+npm run preview:local
+```
+
+Open `http://127.0.0.1:4173`. For local Gemma answers, copy `website/.env.example` to `website/.env.local` and add your Google AI Studio key. Environment files are ignored by Git.
+
+
 Forecasts a U.S. city's violent and property crime rate **four years ahead** from its current
 demographic, economic, housing, political, religious, policing and public-spending profile,
 plus the *direction* those inputs are moving (their derivatives). One model generalises across
